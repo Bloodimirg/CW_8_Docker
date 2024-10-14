@@ -1,9 +1,13 @@
-from django.urls import path
-from .views import HabitCreateView, HabitListView
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .views import UserHabitViewSet, PublicHabitViewSet
 
-app_name = 'habit'  # Добавь это
+router = DefaultRouter()
+router.register(r"my-habits", UserHabitViewSet, basename="my-habits")
+router.register(r"public-habits", PublicHabitViewSet, basename="public-habits")
+
+app_name = "habit"
 
 urlpatterns = [
-    path('', HabitListView.as_view(), name='habit-list'),  # Например, список привычек
-    path('create/', HabitCreateView.as_view(), name='habit-create'),  # Создание привычки
+    path("", include(router.urls)),
 ]
