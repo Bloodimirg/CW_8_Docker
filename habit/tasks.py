@@ -1,5 +1,4 @@
 import os
-from datetime import timedelta
 
 import requests
 from celery import shared_task
@@ -11,36 +10,24 @@ from .models import Habit
 def send_habit_reminders():
     """Проверка привычек и периодичности"""
     now = timezone.now()
-    one_week_ago = now - timedelta(days=7)
+    chat_id = os.getenv('CHAT_ID')  # временно указываем свой chat id
 
-    # Получаем все привычки, которые нужно напомнить
     habits = Habit.objects.filter(
-        owner__chat_id__isnull=False,
-        is_published=True
+        is_published=True,
+        action=True,
+        time_to_complete=True,
     )
 
     for habit in habits:
-        # Получаем все выполненные записи этой привычки за последние 7 дней
-        completed_habits = habit.completedhabit_set.filter(date_completed__gte=one_week_ago)
-
-        # Проверяем, выполнена ли привычка хотя бы один раз за последнюю неделю
-        if completed_habits.exists() and habit.time_to_complete <= 120:
-            # Привычка выполнена, проверяем периодичность
-            if habit.periodicity < 7:
-                message = (
-                    f"Напоминание о привычке!\n"
-                    f"Действие: {habit.action}\n"
-                    f"Место: {habit.place}\n"
-                    f"Время: {habit.time}\n"
-                )
-                send_telegram_message(habit.owner.chat_id, message)
-        else:
-            # Привычка не была выполнена за 7 дней
+        if habit.time == now:
             message = (
-                f"У вас не выполнена привычка за последнюю неделю!\n"
+                f"Напоминание о привычке!\n"
                 f"Действие: {habit.action}\n"
+                f"Место: {habit.place}\n"
+                f"Время: {habit.time}\n"
+                f"Вознаграждение: {habit.reward if habit.reward else 'Без вознаграждения'}\n"
             )
-            send_telegram_message(habit.owner.chat_id, message)
+            send_telegram_message(chat_id, message)  # Отправляем напоминание
 
 
 def send_telegram_message(chat_id, message):
