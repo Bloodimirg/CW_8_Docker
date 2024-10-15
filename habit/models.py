@@ -13,8 +13,8 @@ class Habit(models.Model):
     """Модель привычки"""
 
     CHOICES_PERIOD = (
-        ("daily", "Ежедневная"),
-        ("weekly", "Еженедельная"),
+        (1, "Ежедневная"),
+        (7, "Еженедельная"),
     )
 
     owner = models.ForeignKey(
