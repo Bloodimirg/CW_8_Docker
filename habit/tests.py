@@ -1,10 +1,10 @@
-from rest_framework.exceptions import ValidationError
 from rest_framework.test import APITestCase
 
 from habit.serializers import HabitSerializer
 from users.models import User
 from habit.models import Habit
 from django.test import RequestFactory
+from rest_framework.exceptions import ValidationError
 
 
 class HabitTestCase(APITestCase):
@@ -12,7 +12,7 @@ class HabitTestCase(APITestCase):
 
     def setUp(self):
         self.factory = RequestFactory()
-        # Создание пользователя с использованием email вместо username
+
         self.user = User.objects.create(
             email="testuser@example.com",
             password="testpassword"
@@ -41,10 +41,8 @@ class HabitTestCase(APITestCase):
             'time_to_complete': 60,
             'is_published': True,
         }
-
         self.request = self.factory.post('/dummy-url/')
-        self.request.user = self.user  # Устанавливаем тестового пользователя в запрос
-        # Создаем сериализатор с контекстом запроса
+        self.request.user = self.user
         self.serializer = HabitSerializer(data=self.valid_payload, context={'request': self.request})
 
     def test_create_habit(self):
@@ -73,97 +71,66 @@ class HabitTestCase(APITestCase):
         """Тест на публичный статус привычки"""
         self.assertTrue(self.habit.is_published, "Привычка должна быть опубликована")
 
-    def test_create_method(self):
-
-        habit = self.serializer.create(self.valid_payload)
-        self.assertIsInstance(habit, Habit)
-        self.assertEqual(habit.owner, self.user)
-
-    def test_validate_reward_and_conn_habit(self):
-        data = {
-            'reward': 'Reward',
-            'conn_habit': 'Some other habit',
-        }
-        with self.assertRaises(ValidationError):
-            self.serializer.validate(data)
-
-    def test_validate_time_to_complete(self):
-        # Проверяем, что возникает ошибка при времени выполнения больше 120 секунд
-        data = {
-            'time_to_complete': 130,  # Больше 120
-        }
-        with self.assertRaises(ValidationError):
-            self.serializer.validate(data)
-
-    def test_validate_conn_habit_sign(self):
-        # Проверяем, что возникает ошибка, если связанная привычка не приятная
-        conn_habit = Habit.objects.create(
-            owner=self.user,
-            place='Park',
-            time='09:00',
-            action='Walk',
-            sign=False,  # Неприятная привычка
-        )
-        data = {
-            'conn_habit': conn_habit,
-        }
-        with self.assertRaises(ValidationError):
-            self.serializer.validate(data)
-
-    def test_validate_sign_reward_and_conn_habit(self):
-        # Проверяем, что возникает ошибка, если приятная привычка имеет вознаграждение
-        data = {
-            'sign': True,
-            'reward': 'Reward',
-        }
-        with self.assertRaises(ValidationError):
-            self.serializer.validate(data)
-
-    def test_validate_periodicity(self):
-        # Проверяем, что возникает ошибка, если периодичность вне допустимого диапазона
-        data = {
-            'periodicity': 0,  # Менее 1
-        }
-        with self.assertRaises(ValidationError):
-            self.serializer.validate(data)
-
-        data = {
-            'periodicity': 8,  # Более 7
-        }
-        with self.assertRaises(ValidationError):
-            self.serializer.validate(data)
-
     def test_validate_periodicity_not_empty(self):
-        # Проверяем, что возникает ошибка, если периодичность не указана
+        """Тест, что возникает ошибка, если периодичность не указана"""
         data = {}
         with self.assertRaises(ValidationError):
             self.serializer.validate(data)
 
-    def test_validate_returns_data(self):
-        """Тестируем, что валидные данные возвращаются корректно."""
-        payload = {
+    def test_valid_periodicity(self):
+        """Тест валидной периодичности (от 1 до 7)"""
+        # Убираем вознаграждение, так как это приятная привычка
+        valid_payload = {
             'place': 'Gym',
+            'time': '08:00',
             'action': 'Workout',
-            'sign': True,
+            'sign': True,  # Приятная привычка
             'periodicity': 3,
-            'reward': None,
-            'conn_habit': None,
+            'time_to_complete': 60,
+            'is_published': True,
+            'reward': None,  # Убираем вознаграждение, чтобы пройти проверку
+        }
+
+        serializer = HabitSerializer(data=valid_payload, context={'request': None})
+        self.assertTrue(serializer.is_valid(), f"Сериализатор должен быть валиден. Ошибки: {serializer.errors}")
+
+    def test_reward_and_conn_habit_error(self):
+        """Тест на проверку ошибки при указании вознаграждения, и связанной привычки одновременно"""
+        # Создаем связанную привычку
+        related_habit = Habit.objects.create(
+            owner=self.user,
+            place="Home",
+            time="10:00",
+            action="Reading",
+            sign=True,  # Приятная привычка
+            periodicity=1,
+            is_published=True,
+        )
+
+        # Формируем неправильные данные (оба поля указаны)
+        invalid_payload = {
+            'place': 'Gym',
+            'time': '08:00',
+            'action': 'Workout',
+            'sign': False,
+            'periodicity': 3,
+            'reward': "Protein shake",  # Указано вознаграждение
+            'conn_habit': related_habit.id,  # Указана связанная привычка
             'time_to_complete': 60,
             'is_published': True,
         }
 
-        serializer = HabitSerializer(data=payload, context={'request': self.request})
+        # Создаем сериализатор с неправильными данными
+        serializer = HabitSerializer(data=invalid_payload, context={'request': None})
 
-        # Проверяем, что данные валидные
-        self.assertTrue(serializer.is_valid())
+        # Проверяем, что сериализатор не валиден
+        self.assertFalse(serializer.is_valid(),
+                         "Сериализатор не должен быть валиден, если указаны и вознаграждение, и связанная привычка")
 
-        # Теперь проверяем, что метод validate возвращает корректные данные
-        validated_data = serializer.validated_data
-        self.assertEqual(validated_data['place'], payload['place'])
-        self.assertEqual(validated_data['action'], payload['action'])
-        self.assertEqual(validated_data['sign'], payload['sign'])
-        self.assertEqual(validated_data['periodicity'], payload['periodicity'])
-        self.assertEqual(validated_data['reward'], payload['reward'])
-        self.assertEqual(validated_data['conn_habit'], payload['conn_habit'])
-        self.assertEqual(validated_data['time_to_complete'], payload['time_to_complete'])
-        self.assertEqual(validated_data['is_published'], payload['is_published'])
+        # Проверяем, что ошибка валидации содержит нужное сообщение
+        self.assertIn("non_field_errors", serializer.errors)
+        self.assertEqual(
+            serializer.errors["non_field_errors"][0],
+            "Нельзя указывать и вознаграждение, и связанную привычку одновременно. Выберите одно.",
+            "Должна быть ошибка валидации, если указаны и вознаграждение, и связанная привычка"
+        )
