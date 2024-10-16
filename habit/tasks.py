@@ -10,24 +10,22 @@ from .models import Habit
 def send_habit_reminders():
     """Проверка привычек и периодичности"""
     now = timezone.now()
-    chat_id = os.getenv('CHAT_ID')  # временно указываем свой chat id
 
     habits = Habit.objects.filter(
         is_published=True,
-        action=True,
-        time_to_complete=True,
     )
 
     for habit in habits:
-        if habit.time == now:
+        if habit.owner.chat_id and habit.time <= now:
             message = (
                 f"Напоминание о привычке!\n"
                 f"Действие: {habit.action}\n"
                 f"Место: {habit.place}\n"
                 f"Время: {habit.time}\n"
-                f"Вознаграждение: {habit.reward if habit.reward else 'Без вознаграждения'}\n"
+                f"Вознаграждение: {habit.reward if habit.reward else 'Нет'}\n"
             )
-            send_telegram_message(chat_id, message)  # Отправляем напоминание
+
+            send_telegram_message(habit.owner.chat_id, message)
 
 
 def send_telegram_message(chat_id, message):
