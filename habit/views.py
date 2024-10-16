@@ -28,11 +28,11 @@ class UserHabitViewSet(viewsets.ModelViewSet):
 
 
 class PublicHabitViewSet(viewsets.ReadOnlyModelViewSet):
-    """View set публичных привычек"""
+    """View set только для чтения публичных привычек"""
 
     serializer_class = PublicHabitSerializer
     pagination_class = CustomPagination
     queryset = Habit.objects.filter(
         is_published=True
-    )  # Показываем все публичные привычки
-    permission_classes = [AllowAny]  # Доступ для всех пользователей
+    )  # Показываем все опубликованные привычки всех пользователей
+    permission_classes = [AllowAny]  # любой пользователь может просматривать публичные привычки, но не изменять их.
