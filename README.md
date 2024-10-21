@@ -1,6 +1,7 @@
 ### Трекер полезных привычек с напоминанием в Telegram
-### Для отправки напоминания нужно получить и заполнить chat_id при регистрации
-#### Запуск приложения (команда для запуска контейнера docker-compose up -d --build)
+#### Для отправки напоминания нужно получить и заполнить chat_id при регистрации
+#### Docker: app, postgres, redis, celery, celery-beat
+#### Запуск Docker-containers (docker-compose up -d --build)
 #### Используемые библиотеки:
 * django | "Основной фреймворк"
 * psycopg2-binary | "Взаимодействия с PostgreSQL из Python."
